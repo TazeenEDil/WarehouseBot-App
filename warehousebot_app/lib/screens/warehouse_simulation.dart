@@ -51,9 +51,10 @@ class WarehouseSimulationScreen extends StatelessWidget {
             ),
           ),
           Container(
-            height: 200,
+            height: 300,
             color: Color(0xFF1A1A2E),
-            child: Image.asset('dummy_image.png'), // Dummy image
+            child: Image.asset('assets/images/simulation.png'),
+             
           ),
           Container(
             color: Color(0xFF1A1A2E),

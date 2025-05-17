@@ -62,8 +62,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 opacity: _opacity.value,
                 child: Transform.scale(
                   scale: _scale.value,
-                  child: SvgPicture.asset(
-                    'assets/images/lock.svg',
+                  child: Image.asset(
+                    'assets/images/robot_splashscreen.png',
                     width: 160,
                     height: 160,
                   ),

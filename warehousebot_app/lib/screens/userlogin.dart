@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../helperfunctions/validators.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../screens/warehouse_simulation.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -64,10 +65,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     borderRadius: BorderRadius.circular(100),
                   ),
                   child: Image.asset(
-                      'assets/images/lock.svg',
-                      width: 160,
-                      height: 160,
-                    ),
+  'assets/images/lock.png',
+  width: 160,
+  height: 160,
+),
                 ),
                 const SizedBox(height: 32),
                 const Text(
