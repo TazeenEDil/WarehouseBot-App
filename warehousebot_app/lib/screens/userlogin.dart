@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../helperfunctions/validators.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../screens/warehouse_simulation.dart';
 
 class LoginScreen extends StatefulWidget {
