@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../helperfunctions/validators.dart';
 import '../screens/warehouse_simulation.dart';
+import '../services/auth_services.dart';
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -23,26 +25,42 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+Future<void> _handleLogin() async {
+  if (_formKey.currentState!.validate()) {
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await AuthService.loginUser(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+        role: 'user', // or 'admin' etc., depending on your app logic
+      );
       
-      try {
-        await Future.delayed(const Duration(seconds: 2)); 
-        // Navigate to WarehouseSimulationScreen after successful login
+      if (response['success']) {
+        
         if (mounted) {
+          print(response['token']);
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => WarehouseSimulationScreen()),
           );
         }
-      } finally {
-        if (mounted) {
-          setState(() => _isLoading = false);
-        }
+      } else {
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response['message'] ?? 'Login failed'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -65,8 +83,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   child: Image.asset(
   'assets/images/lock.png',
-  width: 160,
-  height: 160,
+  width: 100,
+  height: 100,
 ),
                 ),
                 const SizedBox(height: 32),

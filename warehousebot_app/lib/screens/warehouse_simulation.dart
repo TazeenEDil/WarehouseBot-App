@@ -17,9 +17,9 @@ class WarehouseSimulationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF1A1A2E),
+      backgroundColor: Color.fromARGB(255, 3, 3, 9),
       appBar: AppBar(
-        backgroundColor: Color(0xFF1A1A2E),
+        backgroundColor: Color.fromARGB(255, 3, 3, 9),
         title: Row(
           children: [
             CircleAvatar(
@@ -52,12 +52,12 @@ class WarehouseSimulationScreen extends StatelessWidget {
           ),
           Container(
             height: 300,
-            color: Color(0xFF1A1A2E),
+            color: Color.fromARGB(255, 3, 3, 9),
             child: Image.asset('assets/images/simulation.png'),
              
           ),
           Container(
-            color: Color(0xFF1A1A2E),
+            color: Color.fromARGB(255, 3, 3, 9),
             padding: EdgeInsets.all(16),
             child: Text(
               'Current Operations',
@@ -70,7 +70,7 @@ class WarehouseSimulationScreen extends StatelessWidget {
           ),
           Container(
             padding: EdgeInsets.all(16),
-            color: Color(0xFF2E2E3A),
+            color: Color.fromARGB(255, 3, 3, 9),
             child: Column(
               children: [
                 Row(
