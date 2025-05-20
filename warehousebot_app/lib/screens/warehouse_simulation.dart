@@ -39,7 +39,7 @@ class WarehouseSimulationScreen extends StatelessWidget {
       body: Column(
         children: [
           Container(
-            color: Color(0xFF1A1A2E),
+            color: Color.fromARGB(255, 3, 3, 9),
             padding: EdgeInsets.all(16),
             child: Text(
               'Warehouse Simulation',
@@ -53,7 +53,7 @@ class WarehouseSimulationScreen extends StatelessWidget {
           Container(
             height: 300,
             color: Color.fromARGB(255, 3, 3, 9),
-            child: Image.asset('assets/images/simulation.png'),
+            child: Image.asset('assets/images/simulation.jpeg'),
              
           ),
           Container(
