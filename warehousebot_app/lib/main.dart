@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
-import 'screens/splash_screen.dart';
-import 'utils/validators.dart';
+import 'app_theme.dart';
+import 'screens/splash/splashScreen.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  await TokenManager.init(); // now inside validators.dart
-
+void main() {
   runApp(const WarehouseBotApp());
 }
 
@@ -18,6 +14,7 @@ class WarehouseBotApp extends StatelessWidget {
     return MaterialApp(
       title: "WarehouseBot App",
       debugShowCheckedModeBanner: false,
+      theme: AppTheme.darkTheme,
       home: const SplashScreen(),
     );
   }
