@@ -1,124 +1,15 @@
 import 'package:flutter/material.dart';
-import '../../api_client.dart';
-import '../../helperFunction/tokenStorage.dart';
 
-class OrderDetailsScreen extends StatefulWidget {
-  const OrderDetailsScreen({super.key});
+class OrderDetailsScreen extends StatelessWidget {
+  final dynamic order;
 
-  @override
-  State<OrderDetailsScreen> createState() => _OrderDetailsScreenState();
-}
-
-class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
-  bool loading = true;
-  List orders = [];
-
-  fetchOrders() async {
-    try {
-      final token = await TokenStorage.getToken() ?? "";
-      final res = await ApiClient.get("/api/orders", token);
-
-      if (mounted) {
-        setState(() {
-          orders = res["orders"] ?? [];
-          loading = false;
-        });
-      }
-    } catch (e) {
-      print("Orders fetch error: $e");
-      if (mounted) {
-        setState(() => loading = false);
-      }
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    fetchOrders();
-  }
+  const OrderDetailsScreen({super.key, required this.order});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0D0D0D),
-      body: loading
-          ? const Center(child: CircularProgressIndicator(color: Colors.blueAccent))
-          : SafeArea(
-              child: Column(
-                children: [
-                  _header(),
-                  const SizedBox(height: 10),
-                  Expanded(child: _orderList()),
-                ],
-              ),
-            ),
-    );
-  }
-
-  Widget _header() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF6A5AE0), Color(0xFF3A76F0)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(25),
-          bottomRight: Radius.circular(25),
-        ),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(height: 10),
-          Text(
-            "Orders",
-            style: TextStyle(
-              fontSize: 30,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          SizedBox(height: 6),
-          Text(
-            "Track fulfillment and job status",
-            style: TextStyle(fontSize: 16, color: Colors.white70),
-          ),
-          SizedBox(height: 10),
-        ],
-      ),
-    );
-  }
-
-  Widget _orderList() {
-    if (orders.isEmpty) {
-      return const Center(
-        child: Text(
-          "No orders found.",
-          style: TextStyle(color: Colors.white54),
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      itemCount: orders.length,
-      itemBuilder: (context, index) {
-        return _orderCard(orders[index]);
-      },
-    );
-  }
-
-  Widget _orderCard(order) {
-    String orderId = order["OrderID"]?.toString() ?? "N/A";
-    String productId = order["ProductID"]?.toString() ?? "N/A";
-    String robotId = order["RobotID"]?.toString() ?? "N/A";
-    String date = order["Date"]?.toString() ?? "----";
-    String status = order["Status"]?.toString() ?? "Unknown";
+    String orderId = order["_id"]?.toString().substring(order["_id"].toString().length - 8).toUpperCase() ?? "N/A";
+    String status = order["status"]?.toString() ?? "Unknown";
+    List items = order["items"] ?? [];
 
     Color statusColor;
     switch (status.toLowerCase()) {
@@ -128,12 +19,126 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       case "pending":
         statusColor = Colors.orangeAccent;
         break;
-      case "in progress":
+      case "in transit":
         statusColor = Colors.blueAccent;
         break;
       default:
         statusColor = Colors.grey;
     }
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF0D0D0D),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1A1A1A),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          "Order #$orderId",
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Status Header
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      statusColor.withOpacity(0.3),
+                      statusColor.withOpacity(0.15),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: statusColor.withOpacity(0.3)),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      status.toLowerCase() == "completed"
+                          ? Icons.check_circle
+                          : status.toLowerCase() == "pending"
+                              ? Icons.hourglass_bottom
+                              : Icons.local_shipping,
+                      color: statusColor,
+                      size: 48,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      status.toUpperCase(),
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Order #$orderId",
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Items Section
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Order Items",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Items List
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: items.length,
+                      itemBuilder: (context, index) {
+                        final item = items[index];
+                        return _itemCard(item);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _itemCard(item) {
+    String name = item["name"]?.toString() ?? "Unknown Product";
+    int quantity = item["quantity"] ?? 0;
+    String category = item["category"]?.toString() ?? "N/A";
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -141,68 +146,71 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "Order #$orderId",
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              _statusChip(status, statusColor),
-            ],
-          ),
-          const SizedBox(height: 10),
-          _infoRow(Icons.inventory_2_outlined, "Product", productId),
-          _infoRow(Icons.smart_toy_outlined, "Robot", robotId),
-          _infoRow(Icons.calendar_today_outlined, "Date", date),
-        ],
-      ),
-    );
-  }
-
-  Widget _infoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: Colors.white54),
-          const SizedBox(width: 8),
-          Text(
-            "$label: ",
-            style: const TextStyle(color: Colors.white54, fontSize: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blueAccent.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.inventory_2,
+              color: Colors.blueAccent,
+              size: 24,
+            ),
           ),
-          Text(
-            value,
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    _infoChip(Icons.category, category),
+                    const SizedBox(width: 10),
+                    _infoChip(Icons.numbers, "Qty: $quantity"),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _statusChip(String status, Color color) {
+  Widget _infoChip(IconData icon, String text) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color),
-        color: color.withOpacity(0.12),
+        color: Colors.white10,
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(
-        status,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w600,
-          fontSize: 13,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.white54),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+            ),
+          ),
+        ],
       ),
     );
   }

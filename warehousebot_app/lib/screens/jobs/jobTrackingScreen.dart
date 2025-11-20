@@ -11,311 +11,383 @@ class JobTrackingScreen extends StatefulWidget {
 
 class _JobTrackingScreenState extends State<JobTrackingScreen> {
   bool loading = true;
-  List pendingJobs = [];
-  List inProgressJobs = [];
-  List completedJobs = [];
+  List allJobs = [];
+  bool showPendingExpanded = true;
 
   fetchJobs() async {
+    setState(() => loading = true);
+
     try {
       final token = await TokenStorage.getToken() ?? "";
-      final res = await ApiClient.get("/get-jobs", token);
-
-      List all = res["jobs"] ?? [];
+      final res = await ApiClient.getJobs(token: token);
 
       if (mounted) {
         setState(() {
-          pendingJobs = all.where((j) => j["Status"] == "Pending").toList();
-          inProgressJobs = all.where((j) => j["Status"] == "In Progress").toList();
-          completedJobs = all.where((j) => j["Status"] == "Completed").toList();
+          allJobs = res["data"] ?? [];
           loading = false;
         });
+
+        print("📦 Jobs fetched: ${allJobs.length}");
       }
     } catch (e) {
-      print("Jobs fetch error: $e");
+      print("❌ Jobs fetch error: $e");
       if (mounted) {
         setState(() => loading = false);
       }
     }
   }
 
-  /*dispatchJob(Map<String, dynamic> jobData) async {
-  
-  try {
-    final token = await TokenStorage.getToken() ?? "";
-  await ApiClient.post("/warehouse/create-job", Map<String, dynamic>.from(jobData), token: token);
-
-
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Job created successfully!")),
-      );
-      
-      fetchJobs();
-    } catch (e) {
-      print("Dispatch job error: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to create job")),
-      );
-    }
-  
-  }*/
   @override
   void initState() {
     super.initState();
     fetchJobs();
   }
 
+  // Filter jobs by status
+  List get pendingJobs => allJobs
+      .where((j) =>
+          j["status"]?.toString().toLowerCase() == "pending" ||
+          j["status"]?.toString().toLowerCase() == "queued")
+      .toList();
+
+  List get inProgressJobs => allJobs
+      .where((j) => j["status"]?.toString().toLowerCase() == "in_progress")
+      .toList();
+
+  List get completedJobs => allJobs
+      .where((j) => j["status"]?.toString().toLowerCase() == "completed")
+      .toList();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1A1A1A),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          "Job Tracking & Dispatch",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
       body: loading
-          ? const Center(child: CircularProgressIndicator(color: Colors.blueAccent))
+          ? const Center(
+              child: CircularProgressIndicator(color: Colors.blueAccent),
+            )
           : SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(15),
-                child: Column(
-                  children: [
-                    _header(),
-                    const SizedBox(height: 20),
-                    _sectionTitle("Pending Jobs"),
-                    _jobList(pendingJobs, Colors.orangeAccent),
-                    const SizedBox(height: 20),
-                    _sectionTitle("In Progress"),
-                    _jobList(inProgressJobs, Colors.blueAccent, showProgress: true),
-                    const SizedBox(height: 20),
-                    _sectionTitle("Completed"),
-                    _jobList(completedJobs, Colors.greenAccent),
-                    const SizedBox(height: 30),
-                    _dispatchButton(),
-                    const SizedBox(height: 20),
-                  ],
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  await fetchJobs();
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Pending Jobs Dropdown
+                      _pendingJobsDropdown(),
+                      const SizedBox(height: 24),
+
+                      // Job Progress Section
+                      const Text(
+                        "Job Progress",
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // In Progress Jobs
+                      if (inProgressJobs.isEmpty)
+                        _emptyState("No jobs in progress")
+                      else
+                        ..._buildProgressJobs(),
+
+                      const SizedBox(height: 20),
+                    ],
+                  ),
                 ),
               ),
             ),
     );
   }
 
-  Widget _header() {
+  // ------------------ PENDING JOBS DROPDOWN ------------------
+  Widget _pendingJobsDropdown() {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF6A5AE0), Color(0xFF3A76F0)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(25),
-          bottomRight: Radius.circular(25),
-        ),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E2A3A),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
         children: [
-          Text(
-            "Job Tracking",
-            style: TextStyle(
-              fontSize: 30,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+          InkWell(
+            onTap: () {
+              setState(() {
+                showPendingExpanded = !showPendingExpanded;
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Pending Jobs",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Icon(
+                    showPendingExpanded
+                        ? Icons.keyboard_arrow_down
+                        : Icons.keyboard_arrow_right,
+                    color: Colors.white70,
+                  ),
+                ],
+              ),
             ),
           ),
-          SizedBox(height: 6),
-          Text(
-            "Dispatch and monitor task flow",
-            style: TextStyle(fontSize: 16, color: Colors.white70),
-          ),
+          if (showPendingExpanded) ...[
+            const Divider(color: Colors.white10, height: 1),
+            if (pendingJobs.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(20),
+                child: Text(
+                  "No pending jobs",
+                  style: TextStyle(color: Colors.white54),
+                ),
+              )
+            else
+              ...pendingJobs.map((job) => _pendingJobItem(job)).toList(),
+          ],
         ],
       ),
     );
   }
 
-  Widget _sectionTitle(String name) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Text(
-        name,
-        style: const TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
-      ),
-    );
-  }
+  Widget _pendingJobItem(Map job) {
+    String jobId = job["_id"]?.toString().substring(
+              job["_id"].toString().length - 6,
+            ) ??
+        "N/A";
+    String robot = job["assignedRobot"]?.toString() ?? "Unassigned";
+    String status = job["status"]?.toString() ?? "Unknown";
+    List items = job["items"] ?? [];
+    String itemsDesc = items.isNotEmpty
+        ? items.map((i) => "${i['name']} x${i['quantity']}").join(", ")
+        : "No items";
 
-  Widget _jobList(List list, Color color, {bool showProgress = false}) {
-    if (list.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(20),
-        child: Text(
-          "No jobs in this category.",
-          style: TextStyle(color: Colors.white54),
-        ),
-      );
+    // Extract step info if available
+    String stepInfo = "";
+    if (items.isNotEmpty && items[0]['name'] != null) {
+      stepInfo = "Pick n Place - Step 1/3";
     }
 
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: list.length,
-      itemBuilder: (context, index) {
-        return _jobCard(list[index], color, showProgress);
-      },
-    );
-  }
-
-  Widget _jobCard(job, Color color, bool showProgress) {
-    int currentStep = job["CompletionPercentage"] ?? 0;
-    double progress = currentStep / 100;
-
     return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: Colors.white10, width: 1),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "Job #${job["JobID"] ?? "----"}",
+                "Job #$jobId",
                 style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
                   color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              _statusChip(job["Status"] ?? "Unknown", color),
+              const SizedBox(width: 8),
+              Text(
+                "- $stepInfo - ${_formatStatus(status)}",
+                style: const TextStyle(
+                  color: Colors.white60,
+                  fontSize: 13,
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 4),
           Text(
-            "Type: ${job["JobType"] ?? "N/A"}",
-            style: const TextStyle(color: Colors.white70),
-          ),
-          Text(
-            "Robot: ${job["RobotID"] ?? "Unassigned"}",
-            style: const TextStyle(color: Colors.white38),
-          ),
-          Text(
-            "Order: ${job["OrderID"] ?? "N/A"}",
-            style: const TextStyle(color: Colors.white38),
-          ),
-          const SizedBox(height: 12),
-          if (showProgress)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Progress: $currentStep%",
-                  style: const TextStyle(color: Colors.white54),
-                ),
-                const SizedBox(height: 6),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 8,
-                    backgroundColor: Colors.white10,
-                    valueColor: AlwaysStoppedAnimation(color),
-                  ),
-                ),
-              ],
+            "Robot: $robot | Items: $itemsDesc",
+            style: const TextStyle(
+              color: Colors.white38,
+              fontSize: 12,
             ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _statusChip(String status, Color color) {
+  // ------------------ IN PROGRESS JOBS ------------------
+  List<Widget> _buildProgressJobs() {
+    return inProgressJobs.map((job) => _progressJobCard(job)).toList();
+  }
+
+  Widget _progressJobCard(Map job) {
+    String jobId = job["_id"]?.toString().substring(
+              job["_id"].toString().length - 6,
+            ) ??
+        "N/A";
+    int progress = job["completionPercentage"] ?? 0;
+    String robot = job["assignedRobot"]?.toString() ?? "Unassigned";
+    List items = job["items"] ?? [];
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color),
-        color: color.withOpacity(0.12),
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white10),
       ),
-      child: Text(
-        status,
-        style: TextStyle(color: color, fontWeight: FontWeight.w600),
-      ),
-    );
-  }
-
-  Widget _dispatchButton() {
-    return ElevatedButton(
-      onPressed: () {
-        _showDispatchDialog();
-      },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.blueGrey.shade800,
-        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
-      ),
-      child: const Text(
-        "Dispatch New Job",
-        style: TextStyle(fontSize: 16, color: Colors.white),
-      ),
-    );
-  }
-
-  void _showDispatchDialog() {
-    final jobTypeController = TextEditingController();
-    final orderIdController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        title: const Text("Create New Job", style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: jobTypeController,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                labelText: "Job Type (e.g., Pick, Place, Transport)",
-                labelStyle: TextStyle(color: Colors.white54),
-              ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Job #$jobId",
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
             ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: orderIdController,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                labelText: "Order ID",
-                labelStyle: TextStyle(color: Colors.white54),
+          ),
+          const SizedBox(height: 12),
+
+          // Progress Bar
+          Stack(
+            children: [
+              Container(
+                height: 8,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2A2A2A),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              FractionallySizedBox(
+                widthFactor: progress / 100,
+                child: Container(
+                  height: 8,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF3B82F6), Color(0xFF60A5FA)],
+                    ),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "$progress% Complete",
+            style: const TextStyle(
+              color: Colors.white60,
+              fontSize: 13,
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Job Details
+          _jobDetailRow(Icons.precision_manufacturing, "Robot", robot),
+          const SizedBox(height: 8),
+          _jobDetailRow(
+            Icons.inventory_2,
+            "Items",
+            items.isNotEmpty
+                ? items.map((i) => "${i['name']} x${i['quantity']}").join(", ")
+                : "No items",
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _jobDetailRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.white38, size: 16),
+        const SizedBox(width: 8),
+        Text(
+          "$label: ",
+          style: const TextStyle(
+            color: Colors.white54,
+            fontSize: 13,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ------------------ EMPTY STATE ------------------
+  Widget _emptyState(String message) {
+    return Container(
+      padding: const EdgeInsets.all(40),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(
+              Icons.inventory_2_outlined,
+              size: 64,
+              color: Colors.white24,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              style: const TextStyle(
+                color: Colors.white54,
+                fontSize: 16,
               ),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
-          ),
-          /*ElevatedButton(
-            onPressed: () {
-              dispatchJob({
-                "JobType": jobTypeController.text,
-                "OrderID": orderIdController.text,
-              });
-              Navigator.pop(context);
-            },
-            child: const Text("Create"),
-          ),*/
-        ],
       ),
     );
+  }
+
+  // ------------------ HELPERS ------------------
+  String _formatStatus(String status) {
+    switch (status.toLowerCase()) {
+      case "pending":
+        return "Queued";
+      case "in_progress":
+        return "In Progress";
+      case "completed":
+        return "Completed";
+      default:
+        return status;
+    }
   }
 }

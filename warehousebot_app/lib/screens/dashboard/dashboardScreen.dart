@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../helperFunction/tokenStorage.dart';
 import '../../../api_client.dart';
+import '../robots/robotDetailsScreen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -14,6 +15,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List robots = [];
   int totalOrders = 0;
   int pendingOrders = 0;
+  int completedOrders = 0;
+  int inTransitOrders = 0;
 
   fetchData() async {
     setState(() => loading = true);
@@ -21,21 +24,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final token = await TokenStorage.getToken() ?? "";
 
+      // Fetch robots - API returns {success, message, data: [...]}
       final robotRes = await ApiClient.get("/api/fetch-robots", token);
-      final orderRes = await ApiClient.get("/api/orders", token);
+      
+      // Fetch orders - API returns {totalOrders, orders: [...]}
+      final orderRes = await ApiClient.get("/api/orders?limit=1000", token);
 
       if (mounted) {
+        final allOrders = orderRes["orders"] ?? [];
+        
         setState(() {
-          robots = robotRes["robots"] ?? [];
-          totalOrders = orderRes["orders"]?.length ?? 0;
-          pendingOrders = (orderRes["orders"] ?? [])
-              .where((o) => o["Status"] == "Pending")
-              .length;
+          // Extract robots from the "data" field
+          robots = robotRes["data"] ?? [];
+          totalOrders = orderRes["totalOrders"] ?? allOrders.length;
+          
+          // Count orders by status (lowercase)
+          pendingOrders = allOrders.where((o) => o["status"]?.toString().toLowerCase() == "pending").length;
+          completedOrders = allOrders.where((o) => o["status"]?.toString().toLowerCase() == "completed").length;
+          inTransitOrders = allOrders.where((o) => o["status"]?.toString().toLowerCase() == "in transit").length;
+          
           loading = false;
         });
+        
+        // Debug print
+        print("📊 Dashboard Stats:");
+        print("Total Orders: $totalOrders");
+        print("Pending: $pendingOrders");
+        print("Completed: $completedOrders");
+        print("In Transit: $inTransitOrders");
+        print("Active Robots: ${robots.length}");
       }
     } catch (e) {
-      print("Dashboard fetch error: $e");
+      print("❌ Dashboard fetch error: $e");
       if (mounted) {
         setState(() => loading = false);
       }
@@ -82,7 +102,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
             ),
-      // REMOVED: bottomNavigationBar - BottomNav handles this!
     );
   }
 
@@ -114,7 +133,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: const [
           Text(
-            "Dashboard",
+            "Live Operations",
             style: TextStyle(
               color: Colors.white,
               fontSize: 34,
@@ -123,8 +142,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           SizedBox(height: 6),
           Text(
-            "Warehouse Operations Overview",
-            style: TextStyle(color: Colors.white70),
+            "Real-time warehouse monitoring",
+            style: TextStyle(color: Colors.white70, fontSize: 15),
           ),
         ],
       ),
@@ -133,34 +152,77 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // ------------------ QUICK STATS ------------------
   Widget _quickStats() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
       children: [
-        _statCard("Total Orders", totalOrders.toString(), Colors.blueAccent),
-        _statCard("Pending", pendingOrders.toString(), Colors.orangeAccent),
-        _statCard("Robots", robots.length.toString(), Colors.greenAccent),
+        Row(
+          children: [
+            _statCard(
+              "Active Robots",
+              robots.length.toString(),
+              const Color(0xFF3B82F6), // Blue
+              Icons.smart_toy,
+            ),
+            const SizedBox(width: 12),
+            _statCard(
+              "In Transit",
+              inTransitOrders.toString(),
+              const Color(0xFFA855F7), // Purple
+              Icons.local_shipping,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            _statCard(
+              "Completed",
+              completedOrders.toString(),
+              const Color(0xFF10B981), // Green
+              Icons.check_circle,
+            ),
+            const SizedBox(width: 12),
+            _statCard(
+              "Pending",
+              pendingOrders.toString(),
+              const Color(0xFFEF4444), // Red
+              Icons.hourglass_bottom,
+            ),
+          ],
+        ),
       ],
     );
   }
 
-  Widget _statCard(String title, String count, Color glowColor) {
+  Widget _statCard(String title, String count, Color color, IconData icon) {
     return Expanded(
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 6),
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: const Color(0xFF111111),
+          color: color.withOpacity(0.15),
           borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: color.withOpacity(0.3),
+            width: 1.5,
+          ),
           boxShadow: [
             BoxShadow(
-              color: glowColor.withOpacity(0.25),
-              blurRadius: 20,
-              spreadRadius: 2,
+              color: color.withOpacity(0.2),
+              blurRadius: 15,
+              spreadRadius: 1,
             ),
           ],
         ),
         child: Column(
           children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const SizedBox(height: 14),
             Text(
               count,
               style: const TextStyle(
@@ -172,7 +234,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 6),
             Text(
               title,
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: color.withOpacity(0.9),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
@@ -181,72 +248,159 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // ------------------ ROBOTS LIST ------------------
-  Widget _robotsList() {
-    if (robots.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.only(top: 20),
-        child: Center(
-          child: Text(
-            "No active robots found.",
-            style: TextStyle(color: Colors.white60),
-          ),
+  // ------------------ ROBOTS LIST ------------------
+Widget _robotsList() {
+  if (robots.isEmpty) {
+    return const Padding(
+      padding: EdgeInsets.only(top: 20),
+      child: Center(
+        child: Text(
+          "No active robots found.",
+          style: TextStyle(color: Colors.white60, fontSize: 15),
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    return ListView.builder(
-      itemCount: robots.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemBuilder: (context, i) {
-        final r = robots[i];
-        return Container(
+  return ListView.builder(
+    itemCount: robots.length,
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    itemBuilder: (context, i) {
+      final r = robots[i];
+      String status = r["status"] ?? "Unknown";
+      String name = r["name"] ?? "Unknown";
+      String model = r["model"] ?? "N/A";
+      String robotId = r["robotId"] ?? "N/A";
+      int battery = r["batteryLevel"] ?? 0;
+      String currentJob = r["currentJob"]?.toString() ?? "None";
+
+      Color statusColor;
+      switch (status.toLowerCase()) {
+        case "busy":
+        case "working":
+          statusColor = const Color(0xFF10B981);
+          break;
+        case "idle":
+          statusColor = const Color(0xFF3B82F6);
+          break;
+        default:
+          statusColor = Colors.grey;
+      }
+
+      return GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => RobotDetailsScreen(robotId: robotId),
+            ),
+          );
+        },
+        child: Container(
           margin: const EdgeInsets.only(bottom: 14),
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: const Color(0xFF111111),
+            color: const Color(0xFF1A1A1A),
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: statusColor.withOpacity(0.3)),
             boxShadow: [
               BoxShadow(
-                color: Colors.blueAccent.withOpacity(0.18),
-                blurRadius: 15,
-                spreadRadius: 1,
+                color: statusColor.withOpacity(0.15),
+                blurRadius: 12,
               ),
             ],
           ),
           child: Row(
             children: [
-              const Icon(
-                Icons.smart_toy,
-                size: 42,
-                color: Colors.lightBlueAccent,
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.smart_toy,
+                    size: 32, color: statusColor),
               ),
-              const SizedBox(width: 15),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    r["RobotID"].toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold),
                     ),
-                  ),
-                  Text(
-                    "Status: ${r["Status"]}",
-                    style: const TextStyle(color: Colors.white70),
-                  ),
-                  Text(
-                    "Job ID: ${r["JobID"] ?? "None"}",
-                    style: const TextStyle(color: Colors.white38),
-                  ),
-                ],
+                    const SizedBox(height: 6),
+                    Text(
+                      model,
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            status.toUpperCase(),
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Row(
+                          children: [
+                            Icon(Icons.battery_full,
+                                size: 14,
+                                color: battery > 50
+                                    ? Colors.greenAccent
+                                    : battery > 20
+                                        ? Colors.orangeAccent
+                                        : Colors.redAccent),
+                            const SizedBox(width: 4),
+                            Text(
+                              "$battery%",
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
+                              ),
+                            )
+                          ],
+                        )
+                      ],
+                    ),
+                    if (currentJob != "None") ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        "Job: $currentJob",
+                        style: const TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ],
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 }

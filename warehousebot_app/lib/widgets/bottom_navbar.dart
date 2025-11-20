@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../screens/dashboard/dashboardScreen.dart';
 import '../screens/inventory/inventoryScreen.dart';
 import '../screens/robots/robotAnalyticsScreen.dart';
-import '../screens/orders/orderDetailsScreen.dart';
+import '../screens/orders/ordersScreen.dart';
 import '../screens/jobs/jobTrackingScreen.dart';
 
 class BottomNav extends StatefulWidget {
@@ -21,7 +21,7 @@ class _BottomNavState extends State<BottomNav> {
     JobTrackingScreen(),
     InventoryScreen(),
     RobotAnalyticsScreen(),
-    OrderDetailsScreen(),
+    OrdersScreen(),
   ];
 
   @override
