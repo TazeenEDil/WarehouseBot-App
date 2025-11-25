@@ -24,14 +24,14 @@ class _RobotDetailAnalyticsScreenState
     try {
       final token = await TokenStorage.getToken() ?? "";
 
-      // Fetch robot logs - API should return logs for all robots
+      // Fetch robot logs - Updated endpoint to match your API
       final logsRes = await ApiClient.get("/api/get-robot-logs", token);
 
       if (mounted) {
         setState(() {
-          // Filter logs for this specific robot
+          // Filter logs for this specific robot using data array
           String robotId = widget.robot["robotId"]?.toString() ?? "";
-          robotLogs = (logsRes["logs"] ?? [])
+          robotLogs = (logsRes["data"] ?? [])
               .where((log) => log["robotId"] == robotId)
               .toList();
           loading = false;
@@ -55,11 +55,13 @@ class _RobotDetailAnalyticsScreenState
 
   // Calculate stats from logs
   int get tasksCompleted => robotLogs
-      .where((log) => log["action"]?.toString().toLowerCase() == "completed")
+      .where((log) => 
+          log["status"]?.toString().toLowerCase() == "free" ||
+          (log["message"]?.toString().toLowerCase().contains("completed") ?? false))
       .length;
 
   int get errorCount => robotLogs
-      .where((log) => log["action"]?.toString().toLowerCase() == "error")
+      .where((log) => log["status"]?.toString().toLowerCase() == "error")
       .length;
 
   double get errorRate {
@@ -82,6 +84,7 @@ class _RobotDetailAnalyticsScreenState
         statusColor = const Color(0xFF10B981);
         break;
       case "idle":
+      case "free":
         statusColor = const Color(0xFF3B82F6);
         break;
       case "charging":
@@ -536,7 +539,8 @@ class _RobotDetailAnalyticsScreenState
       itemCount: robotLogs.length > 10 ? 10 : robotLogs.length,
       itemBuilder: (context, i) {
         final log = robotLogs[i];
-        final action = log["action"]?.toString() ?? "Unknown";
+        final status = log["status"]?.toString() ?? "Unknown";
+        final message = log["message"]?.toString() ?? "No message";
         final timestamp = log["timestamp"]?.toString() ?? "";
 
         return Container(
@@ -553,9 +557,11 @@ class _RobotDetailAnalyticsScreenState
                 width: 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: action.toLowerCase() == "error"
+                  color: status.toLowerCase() == "error"
                       ? const Color(0xFFEF4444)
-                      : const Color(0xFF3B82F6),
+                      : status.toLowerCase() == "free"
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFF3B82F6),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -565,7 +571,7 @@ class _RobotDetailAnalyticsScreenState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      action,
+                      message,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 14,
@@ -574,7 +580,7 @@ class _RobotDetailAnalyticsScreenState
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      timestamp,
+                      "Status: $status • $timestamp",
                       style: const TextStyle(
                         color: Colors.white38,
                         fontSize: 12,
