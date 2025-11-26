@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../api_client.dart';
 import '../../helperFunction/tokenStorage.dart';
-import 'robotDetailAnalyticsScreen.dart'; 
-
+import 'robotDetailAnalyticsScreen.dart';
+import '../../widgets/app_theme.dart';
+import '../../widgets/page_header.dart';
+import '../../widgets/custom_card.dart';
+import '../../widgets/status_badge.dart';
+import '../../widgets/empty_state.dart';
 
 class RobotAnalyticsScreen extends StatefulWidget {
   const RobotAnalyticsScreen({super.key});
@@ -15,12 +19,10 @@ class _RobotAnalyticsScreenState extends State<RobotAnalyticsScreen> {
   bool loading = true;
   List robots = [];
 
-  // ------------ FETCH ROBOTS ----------------
   fetchRobots() async {
     setState(() => loading = true);
     try {
       final token = await TokenStorage.getToken() ?? "";
-
       final robotRes = await ApiClient.get("/api/fetch-robots", token);
 
       if (mounted) {
@@ -28,13 +30,10 @@ class _RobotAnalyticsScreenState extends State<RobotAnalyticsScreen> {
           robots = robotRes["data"] ?? [];
           loading = false;
         });
-        print("🤖 Robots fetched: ${robots.length}");
       }
     } catch (e) {
       print("Robot analytics fetch error: $e");
-      if (mounted) {
-        setState(() => loading = false);
-      }
+      if (mounted) setState(() => loading = false);
     }
   }
 
@@ -44,33 +43,38 @@ class _RobotAnalyticsScreenState extends State<RobotAnalyticsScreen> {
     fetchRobots();
   }
 
-  // ============= UI BUILD =====================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0D0D),
+      backgroundColor: AppTheme.background,
       body: loading
-          ? const Center(child: CircularProgressIndicator(color: Colors.blueAccent))
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
           : SafeArea(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _header(),
-                    const SizedBox(height: 25),
+                    const PageHeader(
+                      title: "Robot Analytics",
+                      subtitle: "Monitor fleet performance and health",
+                    ),
+                    const SizedBox(height: 20),
 
                     robots.isEmpty
-                        ? _emptyState()
+                        ? const EmptyState(
+                            icon: Icons.smart_toy_outlined,
+                            message: "No robots available",
+                            submessage: "Robots will appear here when they're registered",
+                          )
                         : GridView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
-                              crossAxisSpacing: 15,
-                              mainAxisSpacing: 15,
-                              childAspectRatio: 0.85,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              childAspectRatio: 0.80,
                             ),
                             itemCount: robots.length,
                             itemBuilder: (context, index) {
@@ -84,85 +88,23 @@ class _RobotAnalyticsScreenState extends State<RobotAnalyticsScreen> {
     );
   }
 
-  // ------------------ HEADER ------------------
-  Widget _header() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          colors: [
-            Colors.blueAccent.withOpacity(0.35),
-            Colors.deepPurpleAccent.withOpacity(0.25),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blueAccent.withOpacity(0.25),
-            blurRadius: 25,
-            spreadRadius: 5,
-            offset: const Offset(0, 5),
-          )
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text(
-            "Robot Analytics",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 6),
-          Text(
-            "Select a robot to view details",
-            style: TextStyle(color: Colors.white70, fontSize: 15),
-          )
-        ],
-      ),
-    );
-  }
-
-  // ------------------ ROBOT CARD ------------------
   Widget _robotCard(Map robot) {
     final status = robot["status"]?.toString() ?? "Unknown";
     final name = robot["name"]?.toString() ?? "Robot";
     final robotId = robot["robotId"]?.toString() ?? "N/A";
     final battery = robot["batteryLevel"] ?? 0;
-    final model = robot["model"]?.toString() ?? "N/A";
 
-    Color statusColor;
-    String statusText;
+    Color statusColor = _getStatusColor(status);
 
-    switch (status.toLowerCase()) {
-      case "busy":
-      case "working":
-        statusColor = const Color(0xFF10B981);
-        statusText = "BUSY";
-        break;
-
-      case "idle":
-        statusColor = const Color(0xFF3B82F6);
-        statusText = "IDLE";
-        break;
-
-      case "charging":
-        statusColor = const Color(0xFFF59E0B);
-        statusText = "CHARGING";
-        break;
-
-      default:
-        statusColor = Colors.grey;
-        statusText = "UNKNOWN";
-    }
-
-    return GestureDetector(
+    return CustomCard(
+      padding: const EdgeInsets.all(16),
+      borderColor: statusColor.withOpacity(0.2),
+      boxShadow: [
+        BoxShadow(
+          color: statusColor.withOpacity(0.1),
+          blurRadius: 12,
+        ),
+      ],
       onTap: () {
         Navigator.push(
           context,
@@ -171,143 +113,108 @@ class _RobotAnalyticsScreenState extends State<RobotAnalyticsScreen> {
           ),
         );
       },
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              statusColor.withOpacity(0.15),
-              statusColor.withOpacity(0.05),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.smart_toy, color: statusColor, size: 28),
+              ),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: statusColor.withOpacity(0.5),
+                      blurRadius: 4,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+              ),
             ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: statusColor.withOpacity(0.3),
-            width: 2,
+
+          const Spacer(),
+
+          Text(
+            name,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textPrimary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: statusColor.withOpacity(0.2),
-              blurRadius: 15,
-            )
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Robot Icon
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
+          const SizedBox(height: 4),
+          Text(
+            "ID: $robotId",
+            style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+          ),
+
+          const SizedBox(height: 12),
+
+          StatusBadge(status: status, customColor: statusColor),
+
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              Icon(
+                battery > 50
+                    ? Icons.battery_full
+                    : battery > 20
+                        ? Icons.battery_std
+                        : Icons.battery_alert,
+                size: 16,
+                color: battery > 50
+                    ? AppTheme.success
+                    : battery > 20
+                        ? AppTheme.warning
+                        : AppTheme.error,
               ),
-              child: Icon(Icons.smart_toy, color: statusColor, size: 28),
-            ),
-
-            const Spacer(),
-
-            Text(
-              name,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-
-            const SizedBox(height: 4),
-
-            Text(
-              "ID: $robotId",
-              style: const TextStyle(fontSize: 13, color: Colors.white54),
-            ),
-
-            const SizedBox(height: 12),
-
-            // Status Badge
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.2),
-                border: Border.all(color: statusColor.withOpacity(0.5)),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: statusColor,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    statusText,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: statusColor,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.white.withOpacity(0.2)),
-              ),
-              child: const Text(
-                "Check Analytics",
-                textAlign: TextAlign.center,
+              const SizedBox(width: 6),
+              Text(
+                "$battery%",
                 style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.white,
+                  fontSize: 12,
+                  color: battery > 50
+                      ? AppTheme.success
+                      : battery > 20
+                          ? AppTheme.warning
+                          : AppTheme.error,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-            )
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  // ------------------ EMPTY STATE ------------------
-  Widget _emptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          children: [
-            Icon(
-              Icons.smart_toy_outlined,
-              size: 64,
-              color: Colors.white.withOpacity(0.2),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              "No robots available",
-              style: TextStyle(color: Colors.white54, fontSize: 16),
-            ),
-          ],
-        ),
-      ),
-    );
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case "busy":
+      case "working":
+        return AppTheme.success;
+      case "idle":
+        return AppTheme.primary;
+      case "charging":
+        return AppTheme.warning;
+      default:
+        return AppTheme.textTertiary;
+    }
   }
 }

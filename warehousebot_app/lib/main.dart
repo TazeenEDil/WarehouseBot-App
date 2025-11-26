@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'app_theme.dart';
 import 'screens/splash/splashScreen.dart';
 
 void main() {
@@ -14,7 +13,6 @@ class WarehouseBotApp extends StatelessWidget {
     return MaterialApp(
       title: "WarehouseBot App",
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
       home: const SplashScreen(),
     );
   }

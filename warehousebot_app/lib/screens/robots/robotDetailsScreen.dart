@@ -1,85 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../api_client.dart';
 import '../../helperFunction/tokenStorage.dart';
+import '../../widgets/app_theme.dart';
+import '../../widgets/custom_card.dart';
+import '../../widgets/status_badge.dart';
+import '../../widgets/section_title.dart';
 
-// ---------------------------- BLINKING WIDGET ----------------------------
-class BlinkingWidget extends StatefulWidget {
-  final Widget child;
-  final Duration duration;
-
-  const BlinkingWidget({
-    super.key,
-    required this.child,
-    this.duration = const Duration(milliseconds: 600),
-  });
-
-  @override
-  State<BlinkingWidget> createState() => _BlinkingWidgetState();
-}
-
-class _BlinkingWidgetState extends State<BlinkingWidget>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: widget.duration,
-    )..repeat(reverse: true);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: Tween(begin: 1.0, end: 0.3).animate(_controller),
-      child: widget.child,
-    );
-  }
-}
-
-// ---------------------------- PULSE WIDGET ----------------------------
-class PulseWidget extends StatefulWidget {
-  final Widget child;
-  final Duration duration;
-
-  const PulseWidget({
-    super.key,
-    required this.child,
-    this.duration = const Duration(milliseconds: 900),
-  });
-
-  @override
-  State<PulseWidget> createState() => _PulseWidgetState();
-}
-
-class _PulseWidgetState extends State<PulseWidget>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    _controller = AnimationController(
-      vsync: this,
-      duration: widget.duration,
-    )..repeat(reverse: true);
-
-    super.initState();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ScaleTransition(
-      scale: Tween(begin: 1.0, end: 1.15).animate(_controller),
-      child: widget.child,
-    );
-  }
-}
-
-// ========================================================================
-//                           MAIN SCREEN
-// ========================================================================
 class RobotDetailsScreen extends StatefulWidget {
   final String robotId;
 
@@ -128,66 +54,30 @@ class _RobotDetailsScreenState extends State<RobotDetailsScreen> {
     fetchDetails();
   }
 
-  // ---------------------------- STATUS COLOR ----------------------------
   Color getStatusColor(String s) {
     switch (s.toLowerCase()) {
       case "busy":
       case "working":
-        return Colors.greenAccent;
+        return AppTheme.success;
       case "idle":
-        return Colors.blueAccent;
+        return AppTheme.primary;
       case "charging":
-        return Colors.orangeAccent;
+        return AppTheme.warning;
       default:
-        return Colors.grey;
+        return AppTheme.textTertiary;
     }
   }
 
-  // ---------------------------- STATUS GRADIENT ----------------------------
-  Gradient getHeaderGradient(String status) {
-    status = status.toLowerCase();
-
-    if (status == "busy" || status == "working") {
-      return const LinearGradient(
-        colors: [Colors.greenAccent, Colors.green],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-    }
-    if (status == "idle") {
-      return const LinearGradient(
-        colors: [Colors.blueAccent, Colors.blue],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-    }
-    if (status == "charging") {
-      return const LinearGradient(
-        colors: [Colors.orangeAccent, Colors.deepOrange],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
-    }
-    return const LinearGradient(
-      colors: [Colors.grey, Colors.black26],
-    );
+  IconData getBatteryIcon(int level) {
+    if (level < 30) return Icons.battery_alert;
+    if (level >= 80) return Icons.battery_full;
+    return Icons.battery_std;
   }
 
-  // ---------------------------- BATTERY WIDGET ----------------------------
-  Widget batteryIcon(int level) {
-    if (level < 30) {
-      return BlinkingWidget(
-        child: const Icon(Icons.battery_alert, color: Colors.redAccent, size: 26),
-      );
-    } else if (level >= 80) {
-      return BlinkingWidget(
-        child: const Icon(Icons.battery_full, color: Colors.greenAccent, size: 26),
-      );
-    } else {
-      return PulseWidget(
-        child: const Icon(Icons.battery_5_bar, color: Colors.yellowAccent, size: 26),
-      );
-    }
+  Color getBatteryColor(int level) {
+    if (level < 30) return AppTheme.error;
+    if (level >= 80) return AppTheme.success;
+    return AppTheme.warning;
   }
 
   @override
@@ -196,77 +86,93 @@ class _RobotDetailsScreenState extends State<RobotDetailsScreen> {
     final battery = robot["batteryLevel"] ?? 0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0D0D),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: Text(robot["name"] ?? "Robot Details"),
+        backgroundColor: AppTheme.surface,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          robot["name"] ?? "Robot Details",
+          style: const TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
       body: loading
-          ? const Center(child: CircularProgressIndicator(color: Colors.blueAccent))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _robotHeader(status, battery),
-                  const SizedBox(height: 25),
-                  _sectionTitle("Robot Information"),
-                  _infoTile("Robot ID", widget.robotId),
-                  _infoTile("Model", robot["model"] ?? "Unknown"),
-                  _infoTile("Status", status,
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+          : RefreshIndicator(
+              color: AppTheme.primary,
+              backgroundColor: AppTheme.surface,
+              onRefresh: fetchDetails,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _robotHeader(status, battery),
+                    const SizedBox(height: 24),
+
+                    const SectionTitle(title: "Robot Information"),
+                    const SizedBox(height: 12),
+                    _infoCard(icon: Icons.tag, title: "Robot ID", value: widget.robotId),
+                    _infoCard(icon: Icons.settings, title: "Model", value: robot["model"] ?? "Unknown"),
+                    _infoCard(
                       icon: Icons.circle,
-                      iconColor: getStatusColor(status)),
-                  _infoTile("Battery", "$battery%", iconWidget: batteryIcon(battery)),
-                  _infoTile("Current Job",
-                      robot["currentJob"]?.toString() ?? "None",
-                      icon: Icons.work),
+                      title: "Status",
+                      value: status,
+                      valueColor: getStatusColor(status),
+                    ),
+                    _infoCard(
+                      icon: getBatteryIcon(battery),
+                      title: "Battery Level",
+                      value: "$battery%",
+                      valueColor: getBatteryColor(battery),
+                    ),
+                    _infoCard(icon: Icons.work, title: "Current Job", value: robot["currentJob"]?.toString() ?? "None"),
 
-                  const SizedBox(height: 30),
-                  _sectionTitle("Live Position"),
-                  _infoTile("X", latestLog["position"]?["x"]?.toString() ?? "N/A",
-                      icon: Icons.location_on, iconColor: Colors.red),
-                  _infoTile("Y", latestLog["position"]?["y"]?.toString() ?? "N/A",
-                      icon: Icons.location_on, iconColor: Colors.red),
-                  _infoTile("Last Updated",
-                      latestLog["timestamp"]?.toString() ?? "Unknown",
-                      icon: Icons.update),
+                    const SizedBox(height: 24),
+                    const SectionTitle(title: "Live Position"),
+                    const SizedBox(height: 12),
+                    _positionCard(),
 
-                  const SizedBox(height: 30),
-                  _sectionTitle("System Metrics"),
-                  _infoTile("Error Rate",
-                      robot["errorRate"]?.toString() ?? "N/A",
-                      icon: Icons.warning_amber),
-                ],
+                    const SizedBox(height: 24),
+                    const SectionTitle(title: "System Metrics"),
+                    const SizedBox(height: 12),
+                    _infoCard(icon: Icons.warning_amber, title: "Error Rate", value: robot["errorRate"]?.toString() ?? "0%"),
+                  ],
+                ),
               ),
             ),
     );
   }
 
-  // ========================================================================
-  //                               ROBOT HEADER
-  // ========================================================================
   Widget _robotHeader(String status, int battery) {
-    final gradient = getHeaderGradient(status);
+    Color statusColor = getStatusColor(status);
 
-    Widget headerContent = Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: gradient,
-      ),
+    return CustomCard(
+      padding: const EdgeInsets.all(20),
+      borderColor: statusColor.withOpacity(0.2),
+      boxShadow: [
+        BoxShadow(color: statusColor.withOpacity(0.1), blurRadius: 16),
+      ],
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.black26,
-              borderRadius: BorderRadius.circular(14),
+              color: statusColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: statusColor.withOpacity(0.2)),
             ),
-            child: const Icon(Icons.smart_toy, size: 45, color: Colors.white),
+            child: Icon(Icons.smart_toy, size: 40, color: statusColor),
           ),
           const SizedBox(width: 16),
-
-          // NAME + MODEL
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -274,89 +180,112 @@ class _RobotDetailsScreenState extends State<RobotDetailsScreen> {
                 Text(
                   robot["name"] ?? "Unknown Robot",
                   style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold),
+                    color: AppTheme.textPrimary,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   robot["model"] ?? "",
-                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
                 ),
               ],
             ),
           ),
-
-          // STATUS CIRCLE
-          status.toLowerCase() == "busy"
-              ? BlinkingWidget(
-                  child: Icon(Icons.circle, color: Colors.greenAccent, size: 22),
-                )
-              : status.toLowerCase() == "charging"
-                  ? PulseWidget(
-                      child: Icon(Icons.circle,
-                          color: Colors.orangeAccent, size: 22),
-                    )
-                  : Icon(Icons.circle,
-                      color: Colors.blueAccent, size: 22)
+          StatusBadge(status: status, customColor: statusColor),
         ],
       ),
     );
-
-    if (status.toLowerCase() == "busy") {
-      return BlinkingWidget(child: headerContent);
-    }
-
-    return status.toLowerCase() == "charging"
-        ? PulseWidget(child: headerContent)
-        : headerContent;
   }
 
-  // ========================================================================
-  //                            REUSABLE TILE
-  // ========================================================================
-  Widget _infoTile(String title, String value,
-      {IconData? icon, Color? iconColor, Widget? iconWidget}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white12),
-      ),
+  Widget _infoCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    Color? valueColor,
+  }) {
+    return CustomCard(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          if (iconWidget != null) iconWidget,
-
-          if (icon != null)
-            Icon(icon, color: iconColor ?? Colors.white70, size: 22),
-
-          if (icon != null || iconWidget != null)
-            const SizedBox(width: 12),
-
-          Expanded(
-            child: Text(title,
-                style: const TextStyle(color: Colors.white70, fontSize: 15)),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: valueColor ?? AppTheme.primary, size: 20),
           ),
-
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+            ),
+          ),
           Text(
             value,
-            style: const TextStyle(
-                color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: valueColor ?? AppTheme.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _sectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(
-        title,
-        style: const TextStyle(
-            color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+  Widget _positionCard() {
+    final posX = latestLog["position"]?["x"]?.toString() ?? "N/A";
+    final posY = latestLog["position"]?["y"]?.toString() ?? "N/A";
+    final timestamp = latestLog["timestamp"]?.toString() ?? "Unknown";
+
+    return CustomCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  children: [
+                    const Icon(Icons.location_on, color: AppTheme.error, size: 28),
+                    const SizedBox(height: 8),
+                    const Text("X Position", style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                    const SizedBox(height: 4),
+                    Text(posX, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+              Container(width: 1, height: 60, color: AppTheme.borderColor),
+              Expanded(
+                child: Column(
+                  children: [
+                    const Icon(Icons.location_on, color: AppTheme.error, size: 28),
+                    const SizedBox(height: 8),
+                    const Text("Y Position", style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                    const SizedBox(height: 4),
+                    Text(posY, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(color: AppTheme.borderColor),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.update, size: 16, color: AppTheme.textTertiary),
+              const SizedBox(width: 6),
+              Text("Last updated: $timestamp", style: const TextStyle(color: AppTheme.textTertiary, fontSize: 12)),
+            ],
+          ),
+        ],
       ),
     );
   }

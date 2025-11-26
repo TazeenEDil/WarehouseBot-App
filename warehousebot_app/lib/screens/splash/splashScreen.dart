@@ -29,8 +29,8 @@ class _SplashScreenState extends State<SplashScreen> {
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Color.fromARGB(255, 29, 27, 27),
-            Color.fromARGB(255, 29, 27, 27),
+            Color(0xFF0A0E1A),
+            Color(0xFF0A0E1A)
           ],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -45,7 +45,7 @@ class _SplashScreenState extends State<SplashScreen> {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.blue.withValues(alpha: 153), // ~0.6 opacity
+                  color: Colors.blue.withValues(alpha: 153),
                   blurRadius: 25,
                   spreadRadius: 5,
                   offset: Offset(0, 0),
@@ -54,8 +54,8 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             child: const Image(
               image: AssetImage("/images/splash_logo.png"),
-              width: 120,
-              height: 120,
+              width: 150,
+              height: 150,
             ),
           ),
 

@@ -1,6 +1,17 @@
+// ============================================================================
+// FILE: inventory_screen.dart
+// ============================================================================
 import 'package:flutter/material.dart';
 import '../../../api_client.dart';
 import '../../helperFunction/tokenStorage.dart';
+import '../../widgets/app_theme.dart';
+import '../../widgets/page_header.dart';
+import '../../widgets/stat_card.dart';
+import '../../widgets/custom_card.dart';
+import '../../widgets/status_badge.dart';
+import '../../widgets/custom_search_bar.dart';
+import '../../widgets/section_title.dart';
+import '../../widgets/empty_state.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -18,8 +29,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
   int page = 1;
   int totalPages = 1;
   int totalProducts = 0;
-  
-  // Stats data - calculated from all products
   int totalItems = 0;
   int totalCategories = 0;
   int outOfStockItems = 0;
@@ -31,19 +40,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
       
       if (mounted) {
         List allProducts = res["products"] ?? [];
-        
-        // Calculate stats
         Set<String> uniqueCategories = {};
         int outOfStock = 0;
         
         for (var item in allProducts) {
           String category = item["category"]?.toString() ?? "Unknown";
           uniqueCategories.add(category);
-          
           int quantity = item["quantity"] ?? 0;
-          if (quantity == 0) {
-            outOfStock++;
-          }
+          if (quantity == 0) outOfStock++;
         }
         
         setState(() {
@@ -61,7 +65,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
     try {
       final token = await TokenStorage.getToken() ?? "";
       final res = await ApiClient.get("/api/products?page=$page&limit=10", token);
-      print("Response: $res");
       if (mounted) {
         setState(() {
           products = res["products"] ?? [];
@@ -73,9 +76,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       }
     } catch (e) {
       print("Inventory fetch error: $e");
-      if (mounted) {
-        setState(() => loading = false);
-      }
+      if (mounted) setState(() => loading = false);
     }
   }
 
@@ -104,8 +105,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       filteredProducts = products.where((item) {
         final name = item["name"]?.toString().toLowerCase() ?? "";
         final category = item["category"]?.toString().toLowerCase() ?? "";
-        return name.contains(query.toLowerCase()) || 
-               category.contains(query.toLowerCase());
+        return name.contains(query.toLowerCase()) || category.contains(query.toLowerCase());
       }).toList();
     });
   }
@@ -117,9 +117,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Color getStockStatusColor(int quantity) {
-    if (quantity == 0) return Colors.red;
-    if (quantity < 10) return Colors.orange;
-    return Colors.green;
+    if (quantity == 0) return AppTheme.error;
+    if (quantity < 10) return AppTheme.warning;
+    return AppTheme.success;
   }
 
   void changePage(int newPage) {
@@ -135,192 +135,85 @@ class _InventoryScreenState extends State<InventoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0D0D),
+      backgroundColor: AppTheme.background,
       body: loading
-          ? const Center(
-              child: CircularProgressIndicator(color: Colors.blueAccent))
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
           : SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _header(),
-                    const SizedBox(height: 20),
-                    _statsCards(),
-                    const SizedBox(height: 20),
-                    _searchBar(),
-                    const SizedBox(height: 15),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 15),
-                      child: Row(
-                        children: const [
-                          Text(
-                            "Inventory List",
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const PageHeader(
+                            title: "Inventory",
+                            subtitle: "Manage your product catalog",
                           ),
+                          const SizedBox(height: 20),
+                          _statsCards(),
+                          const SizedBox(height: 20),
+                          CustomSearchBar(
+                            controller: searchController,
+                            hintText: "Search products...",
+                          ),
+                          const SizedBox(height: 20),
+                          const SectionTitle(title: "Products"),
+                          const SizedBox(height: 12),
+                          ...filteredProducts.isEmpty
+                              ? [
+                                  const EmptyState(
+                                    icon: Icons.inventory_2_outlined,
+                                    message: "No products found",
+                                    submessage: "Try adjusting your search criteria",
+                                  )
+                                ]
+                              : filteredProducts.map((item) => _inventoryCard(item)).toList(),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 15),
-                      child: Column(
-                        children: filteredProducts.isEmpty
-                            ? [
-                                const Center(
-                                  child: Text(
-                                    "No products found.",
-                                    style: TextStyle(color: Colors.white54),
-                                  ),
-                                ),
-                              ]
-                            : filteredProducts
-                                .map((item) => _inventoryCard(item))
-                                .toList(),
-                      ),
-                    ),
-                    _pagination(),
-                  ],
-                ),
+                  ),
+                  _pagination(),
+                ],
               ),
             ),
     );
   }
 
-  Widget _header() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF6A5AE0), Color(0xFF3A76F0)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(25),
-          bottomRight: Radius.circular(25),
-        ),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(height: 10),
-          Text(
-            "Inventory",
-            style: TextStyle(
-              fontSize: 30,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          SizedBox(height: 6),
-          Text(
-            "Your live product list",
-            style: TextStyle(fontSize: 16, color: Colors.white70),
-          ),
-          SizedBox(height: 10),
-        ],
-      ),
-    );
-  }
-
   Widget _statsCards() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 15),
-      child: Row(
-        children: [
-          Expanded(
-            child: _statCard(
-              "Total Items",
-              totalItems.toString(),
-              Colors.blue.withOpacity(0.2),
-              Colors.blueAccent,
-              Icons.inventory_2,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _statCard(
-              "Categories",
-              totalCategories.toString(),
-              Colors.purple.withOpacity(0.2),
-              Colors.purpleAccent,
-              Icons.category,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _statCard(
-              "Out of Stock",
-              outOfStockItems.toString(),
-              Colors.red.withOpacity(0.2),
-              Colors.redAccent,
-              Icons.warning_rounded,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statCard(String title, String value, Color bgColor, Color accentColor, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: accentColor.withOpacity(0.3), width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: accentColor, size: 24),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Colors.white70,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _searchBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 15),
-      child: TextField(
-        controller: searchController,
-        style: const TextStyle(color: Colors.white),
-        decoration: InputDecoration(
-          hintText: "Search items...",
-          hintStyle: const TextStyle(color: Colors.white54),
-          prefixIcon: const Icon(Icons.search, color: Colors.white54),
-          filled: true,
-          fillColor: const Color(0xFF1E1E1E),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide.none,
+    return Row(
+      children: [
+        Expanded(
+          child: StatCard(
+            title: "Total Items",
+            value: totalItems.toString(),
+            icon: Icons.inventory_2,
+            accentColor: AppTheme.primary,
+            isCompact: true,
           ),
         ),
-      ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: StatCard(
+            title: "Categories",
+            value: totalCategories.toString(),
+            icon: Icons.category,
+            accentColor: AppTheme.purple,
+            isCompact: true,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: StatCard(
+            title: "Out of Stock",
+            value: outOfStockItems.toString(),
+            icon: Icons.warning_rounded,
+            accentColor: AppTheme.error,
+            isCompact: true,
+          ),
+        ),
+      ],
     );
   }
 
@@ -328,81 +221,71 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final quantity = item["quantity"] ?? 0;
     final status = getStockStatus(quantity);
     final statusColor = getStockStatusColor(quantity);
-    
-    return Container(
+
+    return CustomCard(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(
-                child: Text(
-                  item["name"] ?? "Unnamed",
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: statusColor.withOpacity(0.4),
-                    width: 1,
-                  ),
+                  color: AppTheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text(
-                  status,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: statusColor,
-                  ),
-                ),
+                child: const Icon(Icons.inventory_2, color: AppTheme.primary, size: 20),
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
+              const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  "Category: ${item["category"] ?? "Unknown"}",
-                  style: const TextStyle(color: Colors.white54, fontSize: 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item["name"] ?? "Unnamed",
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "Category: ${item["category"] ?? "Unknown"}",
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              StatusBadge(status: status, customColor: statusColor),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                "Quantity: ",
-                style: TextStyle(color: Colors.white54, fontSize: 14),
+                "Quantity Available",
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.blueAccent,
-                  borderRadius: BorderRadius.circular(10),
+                  color: AppTheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.primary.withOpacity(0.3)),
                 ),
                 child: Text(
                   quantity.toString(),
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: AppTheme.primary,
                   ),
                 ),
               ),
@@ -414,10 +297,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Widget _pagination() {
+    if (totalPages <= 1) return const SizedBox.shrink();
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+      padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
-        color: Color(0xFF1A1A1A),
+        color: AppTheme.surface,
+        border: Border(top: BorderSide(color: AppTheme.borderColor)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -425,8 +311,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
           Text(
             "Page $page of $totalPages",
             style: const TextStyle(
-              color: Colors.white70,
+              color: AppTheme.textSecondary,
               fontSize: 14,
+              fontWeight: FontWeight.w500,
             ),
           ),
           Row(
@@ -434,17 +321,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
             children: [
               IconButton(
                 onPressed: page > 1 ? () => changePage(page - 1) : null,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                 icon: Icon(
                   Icons.chevron_left,
-                  color: page > 1 ? Colors.white : Colors.white24,
+                  color: page > 1 ? AppTheme.primary : AppTheme.textTertiary,
                   size: 20,
-                ),
-                style: IconButton.styleFrom(
-                  backgroundColor: page > 1 
-                      ? const Color(0xFF2A2A2A) 
-                      : const Color(0xFF1A1A1A),
                 ),
               ),
               const SizedBox(width: 8),
@@ -460,23 +340,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         height: 32,
                         decoration: BoxDecoration(
                           color: page == pageNumber
-                              ? Colors.blueAccent
-                              : const Color(0xFF2A2A2A),
+                              ? AppTheme.primary
+                              : AppTheme.surfaceLight,
                           borderRadius: BorderRadius.circular(8),
-                          gradient: page == pageNumber
-                              ? const LinearGradient(
-                                  colors: [
-                                    Color(0xFF6A5AE0),
-                                    Color(0xFF3A76F0),
-                                  ],
-                                )
-                              : null,
                         ),
                         alignment: Alignment.center,
                         child: Text(
                           pageNumber.toString(),
                           style: TextStyle(
-                            color: Colors.white,
+                            color: page == pageNumber
+                                ? Colors.white
+                                : AppTheme.textSecondary,
                             fontSize: 13,
                             fontWeight: page == pageNumber
                                 ? FontWeight.bold
@@ -490,17 +364,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
               const SizedBox(width: 8),
               IconButton(
                 onPressed: page < totalPages ? () => changePage(page + 1) : null,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                 icon: Icon(
                   Icons.chevron_right,
-                  color: page < totalPages ? Colors.white : Colors.white24,
+                  color: page < totalPages ? AppTheme.primary : AppTheme.textTertiary,
                   size: 20,
-                ),
-                style: IconButton.styleFrom(
-                  backgroundColor: page < totalPages
-                      ? const Color(0xFF2A2A2A)
-                      : const Color(0xFF1A1A1A),
                 ),
               ),
             ],

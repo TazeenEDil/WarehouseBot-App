@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../widgets/app_theme.dart';
+import '../../widgets/custom_card.dart';
+import '../../widgets/section_title.dart';
+import '../../widgets/info_chip.dart';
 
 class OrderDetailsScreen extends StatelessWidget {
   final dynamic order;
@@ -11,34 +15,19 @@ class OrderDetailsScreen extends StatelessWidget {
     String status = order["status"]?.toString() ?? "Unknown";
     List items = order["items"] ?? [];
 
-    Color statusColor;
-    switch (status.toLowerCase()) {
-      case "completed":
-        statusColor = Colors.greenAccent;
-        break;
-      case "pending":
-        statusColor = Colors.orangeAccent;
-        break;
-      case "in transit":
-        statusColor = Colors.blueAccent;
-        break;
-      default:
-        statusColor = Colors.grey;
-    }
-
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0D0D),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1A1A1A),
+        backgroundColor: AppTheme.surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           "Order #$orderId",
           style: const TextStyle(
-            color: Colors.white,
+            color: AppTheme.textPrimary,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
@@ -46,42 +35,24 @@ class OrderDetailsScreen extends StatelessWidget {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Status Header
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.all(16),
+              CustomCard(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      statusColor.withOpacity(0.3),
-                      statusColor.withOpacity(0.15),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: statusColor.withOpacity(0.3)),
-                ),
                 child: Column(
                   children: [
                     Icon(
-                      status.toLowerCase() == "completed"
-                          ? Icons.check_circle
-                          : status.toLowerCase() == "pending"
-                              ? Icons.hourglass_bottom
-                              : Icons.local_shipping,
-                      color: statusColor,
+                      _getStatusIcon(status),
                       size: 48,
+                      color: _getStatusColor(status),
                     ),
                     const SizedBox(height: 12),
                     Text(
                       status.toUpperCase(),
                       style: TextStyle(
-                        color: statusColor,
+                        color: _getStatusColor(status),
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1.2,
@@ -91,7 +62,7 @@ class OrderDetailsScreen extends StatelessWidget {
                     Text(
                       "Order #$orderId",
                       style: const TextStyle(
-                        color: Colors.white70,
+                        color: AppTheme.textSecondary,
                         fontSize: 14,
                       ),
                     ),
@@ -99,34 +70,18 @@ class OrderDetailsScreen extends StatelessWidget {
                 ),
               ),
 
-              // Items Section
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Order Items",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    
-                    // Items List
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: items.length,
-                      itemBuilder: (context, index) {
-                        final item = items[index];
-                        return _itemCard(item);
-                      },
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 24),
+              const SectionTitle(title: "Order Items"),
+              const SizedBox(height: 12),
+
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  return _itemCard(item);
+                },
               ),
             ],
           ),
@@ -140,27 +95,18 @@ class OrderDetailsScreen extends StatelessWidget {
     int quantity = item["quantity"] ?? 0;
     String category = item["category"]?.toString() ?? "N/A";
 
-    return Container(
+    return CustomCard(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white10),
-      ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.blueAccent.withOpacity(0.15),
+              color: AppTheme.primary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
-              Icons.inventory_2,
-              color: Colors.blueAccent,
-              size: 24,
-            ),
+            child: const Icon(Icons.inventory_2, color: AppTheme.primary, size: 24),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -172,15 +118,15 @@ class OrderDetailsScreen extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: AppTheme.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    _infoChip(Icons.category, category),
+                    InfoChip(icon: Icons.category, text: category),
                     const SizedBox(width: 10),
-                    _infoChip(Icons.numbers, "Qty: $quantity"),
+                    InfoChip(icon: Icons.numbers, text: "Qty: $quantity"),
                   ],
                 ),
               ],
@@ -191,27 +137,29 @@ class OrderDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _infoChip(IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white10,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: Colors.white54),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
+  IconData _getStatusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case "completed":
+        return Icons.check_circle;
+      case "pending":
+        return Icons.hourglass_bottom;
+      case "in transit":
+        return Icons.local_shipping;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case "completed":
+        return AppTheme.success;
+      case "pending":
+        return AppTheme.warning;
+      case "in transit":
+        return AppTheme.primary;
+      default:
+        return AppTheme.textTertiary;
+    }
   }
 }

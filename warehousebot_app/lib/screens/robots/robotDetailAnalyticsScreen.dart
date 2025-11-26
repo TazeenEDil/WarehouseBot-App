@@ -2,6 +2,13 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../../api_client.dart';
 import '../../helperFunction/tokenStorage.dart';
+import '../../widgets/app_theme.dart';
+import '../../widgets/custom_card.dart';
+import '../../widgets/stat_card.dart';
+import '../../widgets/status_badge.dart';
+import '../../widgets/section_title.dart';
+import '../../widgets/empty_state.dart';
+import '../../widgets/loading_indicator.dart';
 
 class RobotDetailAnalyticsScreen extends StatefulWidget {
   final Map robot;
@@ -18,32 +25,26 @@ class _RobotDetailAnalyticsScreenState
   bool loading = true;
   List robotLogs = [];
 
-  fetchRobotLogs() async {
+  // Changed return type from void to Future<void>
+  Future<void> fetchRobotLogs() async {
     setState(() => loading = true);
 
     try {
       final token = await TokenStorage.getToken() ?? "";
-
-      // Fetch robot logs - Updated endpoint to match your API
       final logsRes = await ApiClient.get("/api/get-robot-logs", token);
 
       if (mounted) {
+        String robotId = widget.robot["robotId"]?.toString() ?? "";
         setState(() {
-          // Filter logs for this specific robot using data array
-          String robotId = widget.robot["robotId"]?.toString() ?? "";
           robotLogs = (logsRes["data"] ?? [])
               .where((log) => log["robotId"] == robotId)
               .toList();
           loading = false;
         });
-
-        print("📋 Logs for ${widget.robot['name']}: ${robotLogs.length}");
       }
     } catch (e) {
       print("❌ Logs fetch error: $e");
-      if (mounted) {
-        setState(() => loading = false);
-      }
+      if (mounted) setState(() => loading = false);
     }
   }
 
@@ -53,9 +54,8 @@ class _RobotDetailAnalyticsScreenState
     fetchRobotLogs();
   }
 
-  // Calculate stats from logs
   int get tasksCompleted => robotLogs
-      .where((log) => 
+      .where((log) =>
           log["status"]?.toString().toLowerCase() == "free" ||
           (log["message"]?.toString().toLowerCase().contains("completed") ?? false))
       .length;
@@ -73,76 +73,56 @@ class _RobotDetailAnalyticsScreenState
   Widget build(BuildContext context) {
     final status = widget.robot["status"]?.toString() ?? "Unknown";
     final name = widget.robot["name"]?.toString() ?? "Robot";
-    final robotId = widget.robot["robotId"]?.toString() ?? "N/A";
     final battery = widget.robot["batteryLevel"] ?? 0;
-    final model = widget.robot["model"]?.toString() ?? "N/A";
 
-    Color statusColor;
-    switch (status.toLowerCase()) {
-      case "busy":
-      case "working":
-        statusColor = const Color(0xFF10B981);
-        break;
-      case "idle":
-      case "free":
-        statusColor = const Color(0xFF3B82F6);
-        break;
-      case "charging":
-        statusColor = const Color(0xFFF59E0B);
-        break;
-      default:
-        statusColor = Colors.grey;
-    }
+    Color statusColor = _getStatusColor(status);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0D0D),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1A1A1A),
+        backgroundColor: AppTheme.surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           name,
           style: const TextStyle(
-            color: Colors.white,
+            color: AppTheme.textPrimary,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
       ),
       body: loading
-          ? const Center(
-              child: CircularProgressIndicator(color: Colors.blueAccent))
+          ? const LoadingIndicator(message: "Loading robot analytics...")
           : SafeArea(
               child: RefreshIndicator(
-                onRefresh: () async {
-                  await fetchRobotLogs();
-                },
+                color: AppTheme.primary,
+                backgroundColor: AppTheme.surface,
+                onRefresh: fetchRobotLogs,
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Robot Info Header
                       _robotInfoHeader(statusColor),
-                      const SizedBox(height: 25),
+                      const SizedBox(height: 24),
 
-                      // Stats Cards
-                      _sectionTitle("Pick n Place Status"),
-                      const SizedBox(height: 15),
-                      _statsSection(battery, statusColor),
-                      const SizedBox(height: 25),
+                      const SectionTitle(title: "Performance Metrics"),
+                      const SizedBox(height: 12),
+                      _statsSection(battery),
+                      const SizedBox(height: 24),
 
-                      // Activity Overview
-                      _activityOverview(),
-                      const SizedBox(height: 25),
+                      const SectionTitle(title: "Activity Trend"),
+                      const SizedBox(height: 12),
+                      _activityGraph(),
+                      const SizedBox(height: 24),
 
-                      // Recent Logs
-                      _sectionTitle("Recent Activity Logs"),
-                      const SizedBox(height: 15),
+                      const SectionTitle(title: "Recent Activity Logs"),
+                      const SizedBox(height: 12),
                       _logsSection(),
                     ],
                   ),
@@ -152,38 +132,24 @@ class _RobotDetailAnalyticsScreenState
     );
   }
 
-  // ------------------ ROBOT INFO HEADER ------------------
   Widget _robotInfoHeader(Color statusColor) {
     final status = widget.robot["status"]?.toString() ?? "Unknown";
     final robotId = widget.robot["robotId"]?.toString() ?? "N/A";
     final model = widget.robot["model"]?.toString() ?? "N/A";
 
-    return Container(
+    return CustomCard(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            statusColor.withOpacity(0.2),
-            statusColor.withOpacity(0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: statusColor.withOpacity(0.3)),
-      ),
+      borderColor: statusColor.withOpacity(0.2),
       child: Row(
         children: [
           Container(
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.2),
+              color: statusColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(15),
             ),
-            child: Icon(
-              Icons.smart_toy,
-              color: statusColor,
-              size: 32,
-            ),
+            child: Icon(Icons.smart_toy, color: statusColor, size: 32),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -194,50 +160,17 @@ class _RobotDetailAnalyticsScreenState
                   robotId,
                   style: const TextStyle(
                     fontSize: 16,
-                    color: Colors.white70,
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   model,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.white54,
-                  ),
+                  style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
                 ),
                 const SizedBox(height: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.2),
-                    border: Border.all(color: statusColor.withOpacity(0.5)),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: statusColor,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        status.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: statusColor,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                StatusBadge(status: status, customColor: statusColor),
               ],
             ),
           ),
@@ -246,291 +179,173 @@ class _RobotDetailAnalyticsScreenState
     );
   }
 
-  // ------------------ STATS SECTION ------------------
-  Widget _statsSection(int battery, Color statusColor) {
+  Widget _statsSection(int battery) {
     return Column(
       children: [
         Row(
           children: [
             Expanded(
-              child: _statCard(
-                "Battery Level",
-                "$battery%",
-                "Runtime: ${(battery / 12.5).toStringAsFixed(0)}h",
-                const Color(0xFF10B981),
-                Icons.battery_charging_full,
+              child: StatCard(
+                title: "Battery Level",
+                value: "$battery%",
+                icon: Icons.battery_charging_full,
+                accentColor: AppTheme.success,
+                subtitle: "Runtime: ${(battery / 12.5).toStringAsFixed(0)}h",
+                isCompact: true,
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _statCard(
-                "Error Rate",
-                "${errorRate.toStringAsFixed(1)}%",
-                errorCount > 0 ? "Last: 2h ago" : "No errors",
-                const Color(0xFFEF4444),
-                Icons.error_outline,
+              child: StatCard(
+                title: "Error Rate",
+                value: "${errorRate.toStringAsFixed(1)}%",
+                icon: Icons.error_outline,
+                accentColor: AppTheme.error,
+                subtitle: errorCount > 0 ? "Last: 2h ago" : "No errors",
+                isCompact: true,
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        _statCard(
-          "Tasks Completed Today",
-          tasksCompleted.toString(),
-          "Avg time: 8 min",
-          const Color(0xFF3B82F6),
-          Icons.task_alt,
-          isLarge: true,
+        StatCard(
+          title: "Tasks Completed Today",
+          value: tasksCompleted.toString(),
+          icon: Icons.task_alt,
+          accentColor: AppTheme.primary,
+          subtitle: "Avg time: 8 min",
         ),
       ],
     );
   }
 
-  Widget _statCard(
-    String label,
-    String value,
-    String subtitle,
-    Color color,
-    IconData icon, {
-    bool isLarge = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
-      ),
-      child: isLarge
-          ? Row(
-              children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: color, size: 24),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withOpacity(0.6),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        value,
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white.withOpacity(0.4),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, color: color, size: 20),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withOpacity(0.6),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.white.withOpacity(0.5),
-                  ),
-                ),
-              ],
-            ),
-    );
-  }
-
-  // ------------------ ACTIVITY OVERVIEW ------------------
-  Widget _activityOverview() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _sectionTitle("Activity Overview"),
-        const SizedBox(height: 8),
-        const Text(
-          "Pick n Place Activity",
-          style: TextStyle(fontSize: 13, color: Colors.white54),
-        ),
-        const SizedBox(height: 15),
-        Row(
-          children: [
-            Text(
-              robotLogs.length.toString(),
-              style: const TextStyle(
-                fontSize: 36,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              "Today +15%",
-              style: TextStyle(
-                fontSize: 14,
-                color: Color(0xFF10B981),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-
-        // Graph
-        Container(
-          height: 180,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A1A1A),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
-          ),
-          child: LineChart(
-            LineChartData(
-              gridData: FlGridData(
-                show: true,
-                drawVerticalLine: false,
-                horizontalInterval: 1,
-                getDrawingHorizontalLine: (value) {
-                  return FlLine(
-                    color: Colors.white.withOpacity(0.05),
-                    strokeWidth: 1,
-                  );
-                },
-              ),
-              titlesData: FlTitlesData(
-                show: true,
-                rightTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
-                topTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 30,
-                    interval: 1,
-                    getTitlesWidget: (double value, TitleMeta meta) {
-                      const times = ['8AM', '12PM', '4PM', '8PM'];
-                      if (value.toInt() >= 0 && value.toInt() < times.length) {
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            times[value.toInt()],
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.5),
-                              fontSize: 10,
-                            ),
-                          ),
-                        );
-                      }
-                      return const Text('');
-                    },
-                  ),
-                ),
-                leftTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
-              ),
-              borderData: FlBorderData(show: false),
-              minX: 0,
-              maxX: 3,
-              minY: 0,
-              maxY: 6,
-              lineBarsData: [
-                LineChartBarData(
-                  spots: const [
-                    FlSpot(0, 3),
-                    FlSpot(1, 1.5),
-                    FlSpot(2, 4),
-                    FlSpot(3, 3.5),
-                  ],
-                  isCurved: true,
-                  color: const Color(0xFF3B82F6),
-                  barWidth: 3,
-                  isStrokeCapRound: true,
-                  dotData: const FlDotData(show: false),
-                  belowBarData: BarAreaData(
-                    show: true,
-                    gradient: LinearGradient(
-                      colors: [
-                        const Color(0xFF3B82F6).withOpacity(0.3),
-                        const Color(0xFF3B82F6).withOpacity(0.0),
-                      ],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
+  Widget _activityGraph() {
+    return CustomCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    robotLogs.length.toString(),
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
+                  const Text(
+                    "Total Activities",
+                    style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.success.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              ],
+                child: const Text(
+                  "+15% Today",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.success,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 180,
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: 1,
+                  getDrawingHorizontalLine: (value) {
+                    return FlLine(color: AppTheme.borderColor, strokeWidth: 1);
+                  },
+                ),
+                titlesData: FlTitlesData(
+                  show: true,
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 30,
+                      interval: 1,
+                      getTitlesWidget: (double value, TitleMeta meta) {
+                        const times = ['8AM', '12PM', '4PM', '8PM'];
+                        if (value.toInt() >= 0 && value.toInt() < times.length) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              times[value.toInt()],
+                              style: const TextStyle(
+                                color: AppTheme.textTertiary,
+                                fontSize: 11,
+                              ),
+                            ),
+                          );
+                        }
+                        return const Text('');
+                      },
+                    ),
+                  ),
+                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                borderData: FlBorderData(show: false),
+                minX: 0,
+                maxX: 3,
+                minY: 0,
+                maxY: 6,
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: const [
+                      FlSpot(0, 3),
+                      FlSpot(1, 1.5),
+                      FlSpot(2, 4),
+                      FlSpot(3, 3.5),
+                    ],
+                    isCurved: true,
+                    color: AppTheme.primary,
+                    barWidth: 3,
+                    isStrokeCapRound: true,
+                    dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        colors: [
+                          AppTheme.primary.withOpacity(0.2),
+                          AppTheme.primary.withOpacity(0.0),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  // ------------------ LOGS SECTION ------------------
   Widget _logsSection() {
     if (robotLogs.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(40),
-        child: const Center(
-          child: Text(
-            "No activity logs available",
-            style: TextStyle(color: Colors.white54, fontSize: 14),
-          ),
-        ),
-      );
+      return const EmptyState(icon: Icons.history, message: "No activity logs available");
     }
 
     return ListView.builder(
@@ -543,27 +358,21 @@ class _RobotDetailAnalyticsScreenState
         final message = log["message"]?.toString() ?? "No message";
         final timestamp = log["timestamp"]?.toString() ?? "";
 
-        return Container(
+        Color dotColor = status.toLowerCase() == "error"
+            ? AppTheme.error
+            : status.toLowerCase() == "free"
+                ? AppTheme.success
+                : AppTheme.primary;
+
+        return CustomCard(
+          margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(14),
-          margin: const EdgeInsets.only(bottom: 10),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A1A1A),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
-          ),
           child: Row(
             children: [
               Container(
                 width: 8,
                 height: 8,
-                decoration: BoxDecoration(
-                  color: status.toLowerCase() == "error"
-                      ? const Color(0xFFEF4444)
-                      : status.toLowerCase() == "free"
-                          ? const Color(0xFF10B981)
-                          : const Color(0xFF3B82F6),
-                  shape: BoxShape.circle,
-                ),
+                decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -573,7 +382,7 @@ class _RobotDetailAnalyticsScreenState
                     Text(
                       message,
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: AppTheme.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
@@ -581,10 +390,7 @@ class _RobotDetailAnalyticsScreenState
                     const SizedBox(height: 4),
                     Text(
                       "Status: $status • $timestamp",
-                      style: const TextStyle(
-                        color: Colors.white38,
-                        fontSize: 12,
-                      ),
+                      style: const TextStyle(color: AppTheme.textTertiary, fontSize: 12),
                     ),
                   ],
                 ),
@@ -596,15 +402,18 @@ class _RobotDetailAnalyticsScreenState
     );
   }
 
-  // ------------------ SECTION TITLE ------------------
-  Widget _sectionTitle(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        color: Colors.white,
-      ),
-    );
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case "busy":
+      case "working":
+        return AppTheme.success;
+      case "idle":
+      case "free":
+        return AppTheme.primary;
+      case "charging":
+        return AppTheme.warning;
+      default:
+        return AppTheme.textTertiary;
+    }
   }
 }
