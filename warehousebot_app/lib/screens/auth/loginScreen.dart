@@ -5,6 +5,7 @@ import '../../widgets/bottom_navbar.dart';
 import '../../widgets/app_theme.dart';
 import '../../widgets/gradient_text.dart';
 import '../../widgets/custom_card.dart';
+import 'resetPasswordScreen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -158,8 +159,36 @@ class _LoginScreenState extends State<LoginScreen> {
                       onSubmitted: (_) => loading ? null : loginUser(),
                     ),
 
+                    const SizedBox(height: 12),
+
+                    // Forgot Password Link
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ResetPasswordScreen(),
+                            ),
+                          );
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        ),
+                        child: const Text(
+                          "Forgot Password?",
+                          style: TextStyle(
+                            color: AppTheme.primary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+
                     if (badCreds) ...[
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(

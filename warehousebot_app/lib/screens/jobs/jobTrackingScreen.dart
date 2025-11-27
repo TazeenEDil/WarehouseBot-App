@@ -36,7 +36,7 @@ class _JobTrackingScreenState extends State<JobTrackingScreen> {
         });
       }
     } catch (e) {
-      print("❌ Jobs fetch error: $e");
+      print("Jobs fetch error: $e");
       if (mounted) setState(() => loading = false);
     }
   }
@@ -64,14 +64,10 @@ class _JobTrackingScreenState extends State<JobTrackingScreen> {
       appBar: AppBar(
         backgroundColor: AppTheme.surface,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: const Text(
           "Job Tracking",
           style: TextStyle(
-            color: AppTheme.textPrimary,
+            color: AppTheme.primary,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
@@ -152,7 +148,7 @@ class _JobTrackingScreenState extends State<JobTrackingScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppTheme.warning.withOpacity(0.1),
+                          color: AppTheme.warning.withValues(),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(

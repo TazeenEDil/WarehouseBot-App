@@ -1,6 +1,3 @@
-// ============================================================================
-// FILE: inventory_screen.dart
-// ============================================================================
 import 'package:flutter/material.dart';
 import '../../../api_client.dart';
 import '../../helperFunction/tokenStorage.dart';
