@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'gradient_text.dart';
 import 'app_theme.dart';
 
-/// Header widget for pages with gradient title text (no background gradient)
+
 class PageHeader extends StatelessWidget {
   final String title;
   final String subtitle;

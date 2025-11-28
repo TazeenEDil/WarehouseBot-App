@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'app_theme.dart';
 
-/// Widget that displays text with a gradient color effect
+
 class GradientText extends StatelessWidget {
   final String text;
   final double fontSize;

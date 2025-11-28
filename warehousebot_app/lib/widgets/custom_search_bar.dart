@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'app_theme.dart';
 
-/// Custom search bar widget with consistent styling
+
 class CustomSearchBar extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;

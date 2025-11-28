@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'custom_card.dart';
 import 'app_theme.dart';
 
-/// Card widget for displaying statistics with icon and value
+
 class StatCard extends StatelessWidget {
   final String title;
   final String value;
@@ -23,17 +22,23 @@ class StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomCard(
+    return Container(
       padding: EdgeInsets.all(isCompact ? 16 : 20),
-      backgroundColor: AppTheme.surface,
-      borderColor: accentColor.withOpacity(0.2),
-      boxShadow: [
-        BoxShadow(
-          color: accentColor.withOpacity(0.1),
-          blurRadius: 12,
-          spreadRadius: 0,
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: accentColor.withOpacity(0.2),
+          width: 1.5,
         ),
-      ],
+        boxShadow: [
+          BoxShadow(
+            color: accentColor.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -43,18 +48,29 @@ class StatCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  color: accentColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: accentColor, size: 24),
+                child: Icon(
+                  icon,
+                  color: accentColor,
+                  size: isCompact ? 20 : 24,
+                ),
               ),
-              if (!isCompact)
+              if (isCompact)
                 Container(
-                  width: 8,
-                  height: 8,
+                  width: 6,
+                  height: 6,
                   decoration: BoxDecoration(
                     color: accentColor,
                     shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: accentColor.withOpacity(0.6),
+                        blurRadius: 6,
+                        spreadRadius: 1,
+                      ),
+                    ],
                   ),
                 ),
             ],
@@ -62,20 +78,23 @@ class StatCard extends StatelessWidget {
           SizedBox(height: isCompact ? 12 : 16),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 28,
+            style: TextStyle(
+              fontSize: isCompact ? 28 : 36,
               fontWeight: FontWeight.bold,
               color: AppTheme.textPrimary,
+              height: 1,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 13,
+            style: TextStyle(
+              fontSize: isCompact ? 12 : 14,
               color: AppTheme.textSecondary,
               fontWeight: FontWeight.w500,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           if (subtitle != null) ...[
             const SizedBox(height: 4),

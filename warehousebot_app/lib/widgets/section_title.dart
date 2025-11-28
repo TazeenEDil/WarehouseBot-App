@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'app_theme.dart';
 
-/// Section title widget with optional action button
+
 class SectionTitle extends StatelessWidget {
   final String title;
   final String? action;

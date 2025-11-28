@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'app_theme.dart';
 
-/// Reusable card widget with consistent styling
+
 class CustomCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;

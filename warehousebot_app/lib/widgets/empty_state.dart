@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'app_theme.dart';
 
-/// Widget for displaying empty state with icon and message
+
 class EmptyState extends StatelessWidget {
   final IconData icon;
   final String message;

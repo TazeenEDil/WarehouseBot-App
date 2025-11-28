@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'app_theme.dart';
 
-/// Small chip widget for displaying additional information with icon
+
 class InfoChip extends StatelessWidget {
   final IconData icon;
   final String text;
