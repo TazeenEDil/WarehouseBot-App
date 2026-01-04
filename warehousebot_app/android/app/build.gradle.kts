@@ -42,3 +42,11 @@ android {
 flutter {
     source = "../.."
 }
+
+apply plugin: 'com.google.gms.google-services'
+
+android {
+    defaultConfig {
+        minSdkVersion 21  // Change from 16 to 21
+    }
+}

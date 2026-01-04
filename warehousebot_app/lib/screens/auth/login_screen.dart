@@ -5,7 +5,7 @@ import '../../widgets/bottom_navbar.dart';
 import '../../widgets/app_theme.dart';
 import '../../widgets/gradient_text.dart';
 import '../../widgets/custom_card.dart';
-import 'resetPasswordScreen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,7 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool loading = false;
   bool badCreds = false;
 
-  loginUser() async {
+  Future<void> loginUser() async {
     setState(() {
       loading = true;
       badCreds = false;
@@ -33,10 +33,28 @@ class _LoginScreenState extends State<LoginScreen> {
         "password": passwordController.text.trim(),
       });
 
-      print("Backend response: $res");
-
       if (res["success"] == true && res["token"] != null) {
-        await TokenStorage.saveToken(res["token"]);
+        // Save all user data including userId
+        await TokenStorage.saveUserData(
+          token: res["token"],
+          userId: res["userId"] ?? res["user"]?["_id"] ?? "", // Handle different response formats
+          email: emailController.text.trim(),
+          name: res["name"] ?? res["user"]?["name"] ?? "", // If backend returns name
+        );
+
+        // Optional: Send FCM token to backend for device-specific notifications
+        try {
+          final userId = res["userId"] ?? res["user"]?["_id"];
+          if (userId != null && userId.isNotEmpty) {
+            await ApiClient.sendFcmToken(
+              token: res["token"],
+              userId: userId,
+            );
+          }
+        } catch (e) {
+          print("⚠️ FCM token upload failed: $e");
+          // Don't block login if this fails
+        }
 
         if (!mounted) return;
 
@@ -45,18 +63,14 @@ class _LoginScreenState extends State<LoginScreen> {
           MaterialPageRoute(
             builder: (_) => const BottomNav(currentIndex: 0),
           ),
-          (route) => false,
+          (_) => false,
         );
       } else {
-        setState(() {
-          badCreds = true;
-        });
+        setState(() => badCreds = true);
       }
     } catch (e) {
-      print("Login error: $e");
-      setState(() {
-        badCreds = true;
-      });
+      print("❌ Login error: $e");
+      setState(() => badCreds = true);
     } finally {
       if (mounted) {
         setState(() => loading = false);
@@ -113,114 +127,71 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
 
+                    /// EMAIL
                     TextField(
                       controller: emailController,
-                      style: const TextStyle(color: AppTheme.textPrimary),
                       keyboardType: TextInputType.emailAddress,
-                      decoration: InputDecoration(
-                        labelText: "Email",
-                        labelStyle: const TextStyle(color: AppTheme.textSecondary),
-                        prefixIcon: const Icon(Icons.email_outlined, 
-                          color: AppTheme.textSecondary),
-                        filled: true,
-                        fillColor: AppTheme.background,
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: AppTheme.borderColor),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: AppTheme.primary, width: 2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                      style: const TextStyle(color: AppTheme.textPrimary),
+                      decoration: _inputDecoration(
+                        label: "Email",
+                        icon: Icons.email_outlined,
                       ),
                     ),
+
                     const SizedBox(height: 16),
 
+                    /// PASSWORD
                     TextField(
                       controller: passwordController,
                       obscureText: true,
                       style: const TextStyle(color: AppTheme.textPrimary),
-                      decoration: InputDecoration(
-                        labelText: "Password",
-                        labelStyle: const TextStyle(color: AppTheme.textSecondary),
-                        prefixIcon: const Icon(Icons.lock_outline, 
-                          color: AppTheme.textSecondary),
-                        filled: true,
-                        fillColor: AppTheme.background,
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: AppTheme.borderColor),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: AppTheme.primary, width: 2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                      decoration: _inputDecoration(
+                        label: "Password",
+                        icon: Icons.lock_outline,
                       ),
                       onSubmitted: (_) => loading ? null : loginUser(),
                     ),
 
                     const SizedBox(height: 12),
 
-                    // Forgot Password Link
+                    /// FORGOT PASSWORD (CLICKABLE)
                     Align(
                       alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {
+                      child: GestureDetector(
+                        onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const ResetPasswordScreen(),
+                              builder: (_) => const ForgotPasswordScreen(),
                             ),
                           );
                         },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        ),
                         child: const Text(
                           "Forgot Password?",
                           style: TextStyle(
                             color: AppTheme.primary,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
                           ),
                         ),
                       ),
                     ),
 
                     if (badCreds) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppTheme.error.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppTheme.error.withOpacity(0.3)),
-                        ),
-                        child: Row(
-                          children: const [
-                            Icon(Icons.error_outline, color: AppTheme.error, size: 20),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                "Invalid credentials. Please try again.",
-                                style: TextStyle(
-                                  color: AppTheme.error,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      const SizedBox(height: 12),
+                      _errorBox(),
                     ],
 
                     const SizedBox(height: 24),
 
+                    /// LOGIN BUTTON
                     ElevatedButton(
                       onPressed: loading ? null : loginUser,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primary,
-                        disabledBackgroundColor: AppTheme.primary.withOpacity(0.5),
+                        disabledBackgroundColor:
+                            AppTheme.primary.withOpacity(0.5),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -232,8 +203,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               height: 20,
                               width: 20,
                               child: CircularProgressIndicator(
-                                color: Colors.white,
                                 strokeWidth: 2,
+                                color: Colors.white,
                               ),
                             )
                           : const Text(
@@ -251,6 +222,58 @@ class _LoginScreenState extends State<LoginScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// INPUT DECORATION
+  InputDecoration _inputDecoration({
+    required String label,
+    required IconData icon,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: AppTheme.textSecondary),
+      prefixIcon: Icon(icon, color: AppTheme.textSecondary),
+      filled: true,
+      fillColor: AppTheme.background,
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppTheme.borderColor),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(
+          color: AppTheme.primary,
+          width: 2,
+        ),
+      ),
+    );
+  }
+
+  /// ERROR BOX
+  Widget _errorBox() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.error.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.error.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: const [
+          Icon(Icons.error_outline, color: AppTheme.error, size: 20),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              "Invalid credentials. Please try again.",
+              style: TextStyle(
+                color: AppTheme.error,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class ApiClient {
-  static const String baseUrl = "http://localhost:4000";
+  static const String baseUrl = "https://warehouse-bot-backend.vercel.app";
 
   static Future<dynamic> post(
       String endpoint, Map<String, dynamic> data) async {
@@ -86,5 +87,62 @@ class ApiClient {
 
   static Future<dynamic> getJobs({required String token}) async {
     return get("/api/get-jobs?limit=10", token);
+  }
+
+  // AUTH – PASSWORD RESET FLOW
+  static Future<Map<String, dynamic>> forgotPassword(String email) async {
+    final response = await post(
+      "/auth/forgot-password",
+      {"email": email},
+    );
+
+    return response;
+  }
+
+  static Future<dynamic> checkOtp({
+    required String email,
+    required String otp,
+  }) {
+    return post("/auth/check-otp", {
+      "email": email,
+      "otp": otp,
+    });
+  }
+
+  static Future<dynamic> resetPassword({
+    required String email,
+    required String password,
+  }) {
+    return post("/auth/reset-password", {
+      "email": email.trim().toLowerCase(),
+      "newPassword": password.trim(),
+    });
+  }
+
+  // NOTIFICATIONS
+  static Future<dynamic> fetchNotifications({
+    required String token,
+    required String userId,
+  }) async {
+    return get("/api/notification/$userId", token);
+  }
+
+  // FIREBASE - Send FCM token to backend (optional, if you want to track devices)
+  static Future<void> sendFcmToken({
+    required String token,
+    required String userId,
+  }) async {
+    try {
+      String? fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken != null) {
+        await post("/api/update-fcm-token", {
+          "userId": userId,
+          "fcmToken": fcmToken,
+        });
+        print("✅ FCM token sent to backend");
+      }
+    } catch (e) {
+      print("❌ Error sending FCM token: $e");
+    }
   }
 }

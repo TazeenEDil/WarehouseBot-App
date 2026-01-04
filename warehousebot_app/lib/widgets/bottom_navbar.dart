@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../screens/dashboard/dashboardScreen.dart';
+import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/inventory/inventoryScreen.dart';
-import '../screens/robots/robotAnalyticsScreen.dart';
-import '../screens/orders/ordersScreen.dart';
-import '../screens/jobs/jobTrackingScreen.dart';
+import '../screens/robots/robot_analytics_screen.dart';
+import '../screens/orders/orders_screen.dart';
+import '../screens/jobs/job_tracking_screen.dart';
 import 'app_theme.dart';
 
 class BottomNav extends StatefulWidget {

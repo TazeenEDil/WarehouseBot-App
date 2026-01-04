@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../api_client.dart';
 import '../../helperFunction/tokenStorage.dart';
-import 'robotDetailAnalyticsScreen.dart';
+import 'robot_detail_analytics_screen.dart';
 import '../../widgets/app_theme.dart';
 import '../../widgets/page_header.dart';
 import '../../widgets/custom_card.dart';
